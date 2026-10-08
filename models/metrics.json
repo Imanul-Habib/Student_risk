@@ -1,18 +1,26 @@
 {
-  "source": "dcs_student_data.csv",
-  "rows_raw": 10030,
-  "columns_raw": 21,
-  "exact_duplicate_rows": 30,
+  "raw_rows": 10030,
   "rows_after_duplicate_removal": 10000,
-  "risk_distribution_after_cleaning": {"High": 6109, "Medium": 1964, "Low": 1927},
-  "risk_policy": {
-    "High": "Attendance < 75 OR Final_Score < 55",
-    "Medium": "75 <= Attendance < 80 OR 55 <= Final_Score < 70",
-    "Low": "Attendance >= 80 AND Final_Score >= 70"
+  "duplicate_rows_removed": 30,
+  "rows_used_for_training": 9600,
+  "rows_without_policy_label": 400,
+  "risk_distribution": {
+    "High": 5984,
+    "Medium": 1689,
+    "Low": 1927
   },
-  "random_forest": {
-    "accuracy": 0.9995,
-    "balanced_accuracy": 0.99913,
-    "note": "High performance is expected because Attendance and Final_Score directly define the target."
+  "accuracy": 0.9994791666666667,
+  "balanced_accuracy": 0.9991341991341991,
+  "feature_importance": {
+    "Attendance (%)": 0.4748591287208648,
+    "Final_Score": 0.34091896507869385,
+    "Projects_Score": 0.019050202706089953,
+    "Quizzes_Avg": 0.018396150980457847,
+    "Assignments_Avg": 0.018075121414679728,
+    "Midterm_Score": 0.017986632582207243,
+    "Participation_Score": 0.017390610757862218,
+    "math_score": 0.01605575001531372,
+    "science_score": 0.015831766533709338,
+    "writing_score": 0.015595734531799086
   }
 }
