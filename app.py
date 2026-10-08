@@ -1,62 +1,84 @@
-import joblib,streamlit as st
+import joblib
+import streamlit as st
 from pathlib import Path
 from risk_engine import predict
 
-st.set_page_config(page_title="Student Risk Engine",page_icon="🎓",layout="wide")
+st.set_page_config(page_title="Student Risk Engine", page_icon="🎓", layout="wide")
 st.title("🎓 Student Academic Risk Engine")
-st.caption("Policy-based risk classification with Random Forest support")
-m=Path("models/risk_model.joblib")
-if not m.exists():
+st.caption("University policy-based risk classification with Random Forest support")
+
+model_path = Path("models/risk_model.joblib")
+if not model_path.exists():
     st.error("Model not found. Put dcs_student_data.csv in data/ and run: python train.py")
     st.stop()
-model=joblib.load(m)
 
-def opt_num(label,min_value=0.,max_value=100.):
-    s=st.text_input(label,placeholder="Optional")
-    if not s.strip(): return None
-    try:
-        x=float(s)
-        if x<min_value or x>max_value: st.error(f"{label} must be between {min_value:g} and {max_value:g}."); return None
-        return x
-    except ValueError:
-        st.error(f"{label} must be numeric."); return None
+model = joblib.load(model_path)
 
-st.info("Enter at least 2 attributes. You may provide any subset up to all available fields. Attendance and Final Score give the clearest policy-based assessment.")
-with st.form("risk"):
-    c1,c2,c3=st.columns(3); v={}
-    with c1:
-        v["Attendance (%)"]=opt_num("Attendance (%)")
-        v["Final_Score"]=opt_num("Final Score")
-        v["Midterm_Score"]=opt_num("Midterm Score")
-        v["Assignments_Avg"]=opt_num("Assignments Avg")
-        v["Quizzes_Avg"]=opt_num("Quizzes Avg")
-    with c2:
-        v["Participation_Score"]=opt_num("Participation Score")
-        v["Projects_Score"]=opt_num("Projects Score")
-        v["math_score"]=opt_num("Math Score")
-        v["reading_score"]=opt_num("Reading Score")
-        v["writing_score"]=opt_num("Writing Score")
-    with c3:
-        v["science_score"]=opt_num("Science Score")
-        v["Age"]=opt_num("Age",15,100)
-        v["Gender"]=st.selectbox("Gender",["","Female","Male"])
-        v["Department"]=st.selectbox("Department",["","Computer Science","Engineering","Business","Mathematics"])
-        v["test_preparation_course"]=st.selectbox("Test preparation",["","none","completed"])
-    go=st.form_submit_button("Assess Risk")
+def optional_number(label, minimum=0.0, maximum=100.0):
+    value = st.number_input(label, min_value=minimum, max_value=maximum, value=None, step=0.5)
+    return value
 
-if go:
-    supplied=sum(x is not None and str(x).strip()!="" for x in v.values())
-    if supplied<2:
+st.info("Enter at least 2 attributes. Attendance and Final Score are the strongest policy-defining inputs; all other fields are optional.")
+
+with st.form("risk_form"):
+    st.subheader("Core risk inputs")
+    c1, c2 = st.columns(2)
+    attendance = c1.number_input("Attendance (%)", 0.0, 100.0, value=None, step=0.5)
+    final_score = c2.number_input("Final Score", 0.0, 100.0, value=None, step=0.5)
+
+    st.subheader("Academic information")
+    cols = st.columns(3)
+    values = {}
+    for i, (key, label) in enumerate([
+        ("Midterm_Score", "Midterm Score"), ("Assignments_Avg", "Assignments Average"),
+        ("Quizzes_Avg", "Quizzes Average"), ("Participation_Score", "Participation Score"),
+        ("Projects_Score", "Projects Score"), ("math_score", "Math Score"),
+        ("reading_score", "Reading Score"), ("writing_score", "Writing Score"),
+        ("science_score", "Science Score"),
+    ]):
+        values[key] = cols[i % 3].number_input(label, 0.0, 100.0, value=None, step=0.5)
+
+    st.subheader("Student information")
+    c1, c2, c3 = st.columns(3)
+    values["Age"] = c1.number_input("Age", 15, 80, value=None, step=1)
+    values["Gender"] = c2.selectbox("Gender", ["", "Female", "Male"])
+    values["Department"] = c3.selectbox("Department", ["", "Computer Science", "Engineering", "Business", "Mathematics"])
+    values["test_preparation_course"] = st.selectbox("Test preparation course", ["", "none", "completed"])
+
+    submitted = st.form_submit_button("Assess Risk", type="primary", use_container_width=True)
+
+if submitted:
+    values["Attendance (%)"] = attendance
+    values["Final_Score"] = final_score
+    values = {k: v for k, v in values.items() if v is not None and v != ""}
+
+    if len(values) < 2:
         st.warning("Please enter at least 2 fields.")
         st.stop()
-    r=predict(model,v)
-    st.subheader(f"Risk: {r['risk']}")
-    a,b=st.columns(2)
-    with a:
-        st.write("**Model probabilities**"); st.json(r["probabilities"])
-    with b:
-        if r["rule_risk"]: st.write(f"**Hard-rule result:** {r['rule_risk']}")
-        else: st.write("**Hard-rule result:** unavailable until both Attendance and Final Score are supplied")
-        st.write("**Why:**")
-        for x in r["explanation"]: st.write("• "+x)
-    st.caption("The Random Forest learns the project's policy-defined risk label; it is not a measured dropout/failure prediction.")
+
+    result = predict(model, values)
+    risk = result["risk"]
+
+    a, b, c = st.columns(3)
+    a.metric("Risk Level", risk)
+    b.metric("Model Confidence", f'{result["confidence"] * 100:.1f}%')
+    c.metric("Inputs Used", len(result["inputs_used"]))
+
+    if risk == "High":
+        st.error("🔴 HIGH RISK — immediate academic intervention is recommended.")
+    elif risk == "Medium":
+        st.warning("🟡 MEDIUM RISK — monitor performance and consider targeted support.")
+    else:
+        st.success("🟢 LOW RISK — no immediate intervention indicated by this policy.")
+
+    if result["rule_risk"]:
+        st.write("**Decision source:** transparent hard-risk policy")
+    else:
+        st.warning("**Limited-input mode:** Attendance and Final Score were not both supplied. The Random Forest is making a proxy prediction from the available fields.")
+
+    st.subheader("Why?")
+    for reason in result["explanation"]:
+        st.write("• " + reason)
+
+    st.subheader("Model probabilities")
+    st.bar_chart(result["probabilities"])
