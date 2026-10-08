@@ -1,0 +1,18 @@
+{
+  "source": "dcs_student_data.csv",
+  "rows_raw": 10030,
+  "columns_raw": 21,
+  "exact_duplicate_rows": 30,
+  "rows_after_duplicate_removal": 10000,
+  "risk_distribution_after_cleaning": {"High": 6109, "Medium": 1964, "Low": 1927},
+  "risk_policy": {
+    "High": "Attendance < 75 OR Final_Score < 55",
+    "Medium": "75 <= Attendance < 80 OR 55 <= Final_Score < 70",
+    "Low": "Attendance >= 80 AND Final_Score >= 70"
+  },
+  "random_forest": {
+    "accuracy": 0.9995,
+    "balanced_accuracy": 0.99913,
+    "note": "High performance is expected because Attendance and Final_Score directly define the target."
+  }
+}
